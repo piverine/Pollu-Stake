@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
+import { FactoryComplianceChart } from '@/components/charts/FactoryComplianceChart'
+import { TreasuryChart } from '@/components/charts/TreasuryChart'
 import {
   Table,
   TableHeader,
@@ -220,6 +222,27 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="mb-6 grid gap-6 lg:grid-cols-2">
+          <FactoryComplianceChart 
+            data={[
+              { name: 'Factory-001', compliance: 85, risk: 15 },
+              { name: 'Factory-002', compliance: 92, risk: 8 },
+              { name: 'Factory-003', compliance: 78, risk: 22 },
+              { name: 'Factory-004', compliance: 88, risk: 12 },
+            ]}
+          />
+          <TreasuryChart 
+            data={[
+              { name: 'Slashed Stakes', value: 35 },
+              { name: 'GreenCredits Reserve', value: 25 },
+              { name: 'DAO Treasury', value: 20 },
+              { name: 'Rewards Pool', value: 15 },
+              { name: 'Operations', value: 5 },
+            ]}
+          />
         </div>
 
         {/* Factory List */}

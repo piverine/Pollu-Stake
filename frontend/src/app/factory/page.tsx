@@ -3,12 +3,15 @@
 
 import { useState, useEffect } from 'react'
 import { usePolling } from '@/hooks/usePolling'
+import { useFactoryRegistration } from '@/hooks/useFactoryRegistration'
 import { getForecast } from '@/services/aiApiClient'
 import { stake } from '@/services/contractStubs'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { PollutionTrendChart } from '@/components/charts/PollutionTrendChart'
+import { StakeHistoryChart } from '@/components/charts/StakeHistoryChart'
 import {
   Table,
   TableHeader,
@@ -23,6 +26,7 @@ import { ForecastData, RemediationStep, Factory } from '@/types'
 import { MOCK_SLASH_EVENTS, MOCK_REMEDIATION_STEPS } from '@/services/mockData'
 import toast from 'react-hot-toast'
 import { useStore } from '@/store/useStore' // <-- Import the store
+import { FactoryRegistrationModal } from '@/components/FactoryRegistrationModal'
 
 // --- ADD THIS MISSING FUNCTION ---
 // This function fetches from your backend's /api/dashboard-data
@@ -43,6 +47,12 @@ export default function FactoryDashboard() {
   const [remediationSteps, setRemediationSteps] = useState<RemediationStep[]>(
     MOCK_REMEDIATION_STEPS
   )
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false)
+  const [licenseFileUrl, setLicenseFileUrl] = useState<string | null>(null)
+  const [registrationData, setRegistrationData] = useState<any>(null)
+  
+  // Check if user needs to complete factory registration
+  const { needsRegistration, isChecking } = useFactoryRegistration()
   
   // --- Get ALL factory state from the global store ---
   const {
@@ -57,6 +67,37 @@ export default function FactoryDashboard() {
   const allFactories = Object.values(factories)
   // Get the currently selected factory object
   const currentFactory = activeFactoryId ? factories[activeFactoryId] : null
+
+  // Show registration modal if user needs to complete registration
+  useEffect(() => {
+    if (!isChecking && needsRegistration) {
+      setShowRegistrationModal(true)
+    }
+  }, [needsRegistration, isChecking])
+
+  // Load license file and registration data from localStorage
+  useEffect(() => {
+    const storedFile = localStorage.getItem('factoryLicenseFile')
+    if (storedFile) {
+      try {
+        const fileData = JSON.parse(storedFile)
+        setLicenseFileUrl(fileData.data)
+      } catch (error) {
+        console.error('Error loading license file:', error)
+      }
+    }
+
+    // Load registration data from localStorage
+    const storedRegistration = localStorage.getItem('factoryRegistrationData')
+    if (storedRegistration) {
+      try {
+        const regData = JSON.parse(storedRegistration)
+        setRegistrationData(regData)
+      } catch (error) {
+        console.error('Error loading registration data:', error)
+      }
+    }
+  }, [])
 
   // --- Fetch data ONCE on page load ---
   useEffect(() => {
@@ -142,35 +183,56 @@ export default function FactoryDashboard() {
   return (
     <div className="min-h-screen bg-charcoal-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-        {/* Header and Factory Selector */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-charcoal-900">Factory Dashboard</h1>
-            <p className="mt-2 text-charcoal-600">
-              {currentFactory.name} (ID: {currentFactory.id})
-            </p>
-          </div>
-          {/* --- NEW FACTORY SELECTOR --- */}
-          <div className="mt-4 sm:mt-0">
-            <label htmlFor="factory-select" className="block text-sm font-medium text-charcoal-700">
-              Select Factory
-            </label>
-            <select
-              id="factory-select"
-              name="factory"
-              className="mt-1 block w-full rounded-md border-charcoal-300 py-2 pl-3 pr-10 text-base focus:border-primary-500 focus:outline-none focus:ring-primary-500 sm:text-sm"
-              value={activeFactoryId || ''}
-              onChange={(e) => setActiveFactoryId(e.target.value)}
-            >
-              {allFactories.map((factory) => (
-                <option key={factory.id} value={factory.id}>
-                  {factory.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {/* --- END FACTORY SELECTOR --- */}
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-charcoal-900">Factory Dashboard</h1>
+          <p className="mt-2 text-charcoal-600">
+            {currentFactory.name} (ID: {currentFactory.id})
+          </p>
         </div>
+
+        {/* Factory Registration Information */}
+        {(registrationData || (currentFactory.ownerName && currentFactory.ownerName !== 'Not registered')) && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Factory Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-sm font-medium text-charcoal-600">Factory Name</p>
+                  <p className="mt-1 text-lg text-charcoal-900">{registrationData?.factoryName || (currentFactory.ownerName && currentFactory.ownerName !== 'Not registered' ? currentFactory.name : 'Not registered')}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-charcoal-600">Owner Name</p>
+                  <p className="mt-1 text-lg text-charcoal-900">{registrationData?.ownerName || currentFactory.ownerName || 'Not registered'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-charcoal-600">Location</p>
+                  <p className="mt-1 text-lg text-charcoal-900">{registrationData?.location || currentFactory.location || 'Not registered'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-charcoal-600">Bond Size</p>
+                  <p className="mt-1 text-lg text-charcoal-900">{registrationData?.bondSize || (currentFactory.bondSize && currentFactory.bondSize > 0 ? currentFactory.bondSize : 'Not registered')}</p>
+                </div>
+                {licenseFileUrl && (
+                  <div>
+                    <p className="text-sm font-medium text-charcoal-600">Factory License</p>
+                    <a
+                      href={licenseFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 underline"
+                    >
+                      <FileText className="h-4 w-4" />
+                      View License
+                    </a>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Alert Banner */}
         {forecastBreachAlert && (
@@ -249,6 +311,29 @@ export default function FactoryDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="mb-6 grid gap-6 lg:grid-cols-2">
+          <PollutionTrendChart 
+            data={[
+              { time: '00:00', pm2_5: 45, so2: 20, nox: 15 },
+              { time: '04:00', pm2_5: 52, so2: 25, nox: 18 },
+              { time: '08:00', pm2_5: 78, so2: 35, nox: 25 },
+              { time: '12:00', pm2_5: 95, so2: 42, nox: 32 },
+              { time: '16:00', pm2_5: 85, so2: 38, nox: 28 },
+              { time: '20:00', pm2_5: 62, so2: 28, nox: 20 },
+            ]}
+          />
+          <StakeHistoryChart 
+            data={[
+              { date: 'Day 1', balance: 100, slashed: 0 },
+              { date: 'Day 2', balance: 100, slashed: 0 },
+              { date: 'Day 3', balance: 95, slashed: 5 },
+              { date: 'Day 4', balance: 95, slashed: 5 },
+              { date: 'Day 5', balance: 90, slashed: 10 },
+            ]}
+          />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -400,6 +485,12 @@ export default function FactoryDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Factory Registration Modal */}
+      <FactoryRegistrationModal
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+      />
     </div>
   )
 }

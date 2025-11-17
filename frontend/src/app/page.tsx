@@ -7,24 +7,43 @@ export default function HomePage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section - Full Width */}
-      <div className="relative w-screen left-1/2 right-1/2 -mx-[50vw] bg-gradient-to-br from-primary-500 via-teal-600 to-primary-700 py-20 text-white">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-        <div className="relative mx-auto w-full max-w-[2000px] px-4 sm:px-6 lg:px-8">
+      <div className="relative w-screen left-1/2 right-1/2 -mx-[50vw] min-h-[600px] py-20 text-white overflow-hidden">
+        {/* Background Video */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          style={{ 
+            transform: 'scale(1.1)',
+            filter: 'brightness(0.85) contrast(1.1)',
+          }}
+        >
+          <source src="/bgvideo.mp4" type="video/mp4" />
+          <source src="/bgvideo.webm" type="video/webm" />
+        </video>
+        
+        {/* Subtle overlay for depth and readability */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-500/50 via-teal-600/40 to-primary-700/50"></div>
+        
+        <div className="relative mx-auto w-full max-w-[2000px] px-4 sm:px-6 lg:px-8 z-10">
           <div className="text-center">
-            <h1 className="mb-6 text-5xl font-bold leading-tight sm:text-6xl lg:text-7xl">
+            <h1 className="mb-6 text-5xl font-bold leading-tight sm:text-6xl lg:text-7xl drop-shadow-2xl">
               Pollu-Stake
             </h1>
-            <p className="mb-4 text-2xl font-semibold text-teal-100 sm:text-3xl">
+            <p className="mb-4 text-2xl font-semibold text-white sm:text-3xl drop-shadow-lg">
               On-Chain Environmental Compliance
             </p>
-            <p className="mx-auto mb-10 max-w-3xl text-lg text-teal-50 sm:text-xl">
+            <p className="mx-auto mb-10 max-w-3xl text-lg text-white/95 sm:text-xl drop-shadow-lg">
               Stake, forecast, and earn GreenCredits through AI-powered environmental monitoring.
               A decentralized platform ensuring factory compliance with transparent governance.
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/admin">
                 <button 
-                  className="flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-lg font-medium text-primary-700 shadow-md transition-all hover:bg-teal-50 hover:shadow-lg"
+                  className="flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-lg font-medium text-primary-700 shadow-2xl transition-all hover:bg-teal-50 hover:shadow-xl hover:scale-105"
                 >
                   <Shield className="h-5 w-5" />
                   Admin Portal
@@ -33,7 +52,7 @@ export default function HomePage() {
               </Link>
               <Link href="/factory">
                 <button 
-                  className="flex items-center gap-2 rounded-lg border-2 border-white bg-transparent px-6 py-3 text-lg font-medium text-white shadow-md transition-all hover:bg-white hover:text-primary-700 hover:shadow-lg"
+                  className="flex items-center gap-2 rounded-lg border-2 border-white bg-white/10 backdrop-blur-sm px-6 py-3 text-lg font-medium text-white shadow-2xl transition-all hover:bg-white hover:text-primary-700 hover:shadow-xl hover:scale-105"
                 >
                   <Coins className="h-5 w-5" />
                   Factory Portal

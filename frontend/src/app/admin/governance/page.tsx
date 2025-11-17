@@ -1,31 +1,133 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useUser } from '@clerk/nextjs'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { MOCK_PROPOSALS } from '@/services/mockData'
 import { Vote, CheckCircle2, XCircle, MinusCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function GovernancePage() {
-  const [proposals, setProposals] = useState(MOCK_PROPOSALS)
+interface Proposal {
+  id: string
+  title: string
+  description: string
+  status: string
+  votesFor: number
+  votesAgainst: number
+  votesAbstain: number
+  createdAt?: string
+}
 
-  const handleVote = (proposalId: string, voteType: 'for' | 'against' | 'abstain') => {
-    setProposals(
-      proposals.map((p) => {
-        if (p.id === proposalId) {
-          return {
-            ...p,
-            votesFor: voteType === 'for' ? p.votesFor + 1 : p.votesFor,
-            votesAgainst: voteType === 'against' ? p.votesAgainst + 1 : p.votesAgainst,
-            votesAbstain: voteType === 'abstain' ? p.votesAbstain + 1 : p.votesAbstain,
-          }
-        }
-        return p
+export default function GovernancePage() {
+  const { user } = useUser()
+  const [proposals, setProposals] = useState<Proposal[]>([])
+  const [userVotes, setUserVotes] = useState<Record<string, 'for' | 'against' | 'abstain'>>({})
+  const [isLoading, setIsLoading] = useState(true)
+  const [isVoting, setIsVoting] = useState(false)
+
+  // Fetch proposals from backend
+  useEffect(() => {
+    const fetchProposals = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/dao-proposals')
+        if (!response.ok) throw new Error('Failed to fetch proposals')
+        const data = await response.json()
+        setProposals(data.proposals || [])
+      } catch (error) {
+        console.error('Error fetching proposals:', error)
+        toast.error('Failed to load proposals')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProposals()
+  }, [])
+
+  // Fetch user's votes from backend
+  useEffect(() => {
+    if (!user?.id) return
+
+    const fetchUserVotes = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/api/user-votes/${user.id}`)
+        if (!response.ok) throw new Error('Failed to fetch user votes')
+        const data = await response.json()
+        
+        const votesMap: Record<string, 'for' | 'against' | 'abstain'> = {}
+        data.votes?.forEach((vote: any) => {
+          votesMap[vote.proposalId] = vote.voteType
+        })
+        setUserVotes(votesMap)
+      } catch (error) {
+        console.error('Error fetching user votes:', error)
+      }
+    }
+
+    fetchUserVotes()
+  }, [user?.id])
+
+  const handleVote = async (proposalId: string, voteType: 'for' | 'against' | 'abstain') => {
+    // Check if user has already voted on this proposal
+    if (userVotes[proposalId]) {
+      toast.error(`You have already voted on this proposal. Your vote: ${userVotes[proposalId]}`)
+      return
+    }
+
+    if (!user?.id) {
+      toast.error('Please sign in to vote')
+      return
+    }
+
+    setIsVoting(true)
+    try {
+      const response = await fetch('http://localhost:8000/api/dao-vote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          proposalId,
+          userId: user.id,
+          voteType,
+          timestamp: new Date().toISOString(),
+        }),
       })
-    )
-    toast.success(`Vote recorded: ${voteType}`)
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to record vote')
+      }
+
+      // Update local state
+      setProposals(
+        proposals.map((p) => {
+          if (p.id === proposalId) {
+            return {
+              ...p,
+              votesFor: voteType === 'for' ? p.votesFor + 1 : p.votesFor,
+              votesAgainst: voteType === 'against' ? p.votesAgainst + 1 : p.votesAgainst,
+              votesAbstain: voteType === 'abstain' ? p.votesAbstain + 1 : p.votesAbstain,
+            }
+          }
+          return p
+        })
+      )
+
+      // Record user's vote
+      setUserVotes({
+        ...userVotes,
+        [proposalId]: voteType,
+      })
+
+      toast.success(`Vote recorded: ${voteType}`)
+    } catch (error: any) {
+      console.error('Error voting:', error)
+      toast.error(error.message || 'Failed to record vote')
+    } finally {
+      setIsVoting(false)
+    }
   }
 
   const activeProposals = proposals.filter((p) => p.status === 'active')
@@ -126,24 +228,44 @@ export default function GovernancePage() {
                         </div>
                       </div>
                     </div>
-                    <div className="mt-4 flex gap-2">
-                      <Button size="sm" onClick={() => handleVote(proposal.id, 'for')}>
-                        Vote For
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => handleVote(proposal.id, 'against')}
-                      >
-                        Vote Against
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleVote(proposal.id, 'abstain')}
-                      >
-                        Abstain
-                      </Button>
+                    <div className="mt-4 space-y-3">
+                      {userVotes[proposal.id] ? (
+                        <div className="flex items-center gap-2 rounded-lg bg-green-50 p-3 border border-green-200">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          <span className="text-sm font-medium text-green-700">
+                            You voted: <strong className="capitalize">{userVotes[proposal.id]}</strong>
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleVote(proposal.id, 'for')}
+                            isLoading={isVoting}
+                            disabled={isVoting}
+                          >
+                            Vote For
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => handleVote(proposal.id, 'against')}
+                            isLoading={isVoting}
+                            disabled={isVoting}
+                          >
+                            Vote Against
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleVote(proposal.id, 'abstain')}
+                            isLoading={isVoting}
+                            disabled={isVoting}
+                          >
+                            Abstain
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -196,24 +318,44 @@ export default function GovernancePage() {
                     </div>
                   </div>
                   {proposal.status === 'active' && (
-                    <div className="mt-4 flex gap-2">
-                      <Button size="sm" onClick={() => handleVote(proposal.id, 'for')}>
-                        Vote For
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => handleVote(proposal.id, 'against')}
-                      >
-                        Vote Against
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleVote(proposal.id, 'abstain')}
-                      >
-                        Abstain
-                      </Button>
+                    <div className="mt-4 space-y-3">
+                      {userVotes[proposal.id] ? (
+                        <div className="flex items-center gap-2 rounded-lg bg-green-50 p-3 border border-green-200">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          <span className="text-sm font-medium text-green-700">
+                            You voted: <strong className="capitalize">{userVotes[proposal.id]}</strong>
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleVote(proposal.id, 'for')}
+                            isLoading={isVoting}
+                            disabled={isVoting}
+                          >
+                            Vote For
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => handleVote(proposal.id, 'against')}
+                            isLoading={isVoting}
+                            disabled={isVoting}
+                          >
+                            Vote Against
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleVote(proposal.id, 'abstain')}
+                            isLoading={isVoting}
+                            disabled={isVoting}
+                          >
+                            Abstain
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -30,8 +30,8 @@ export function TopNav() {
   const displayName = user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Signed in'
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-charcoal-200 bg-white shadow-sm">
-      <div className="mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="fixed top-0 left-0 right-0 z-40 border-b border-charcoal-200 bg-white shadow-sm">
+      <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
             {(isAdmin || isFactory) && hasPortalAccess && isLoaded && user && (

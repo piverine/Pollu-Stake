@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
 import asyncio
@@ -7,6 +7,7 @@ import asyncpg
 import datetime
 import os
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 # Import our custom modules
 from iot_simulator import SensorSimulator
@@ -27,25 +28,43 @@ MAX_HISTORY_LENGTH = 50           # How many readings to send to frontend
 # --- 2. App & Middleware Setup ---
 app = FastAPI()
 
-print("!!! USING NEW CORS SETTINGS - v2 !!!")
+print("!!! USING NEW CORS SETTINGS - v4 !!!")
 
-# The new, correct block
-origins = [
-    "http://localhost:3000",  # The frontend dev server
-    "http://127.0.0.1:3000", # Just in case the browser uses the IP
-]
-
+# Use regex pattern for CORS to allow localhost and 127.0.0.1 on any port
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # Use the specific list
-    allow_credentials=True,  # This is now safe and correct
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- 2.5 Pydantic Models ---
+class FactoryRegistrationRequest(BaseModel):
+    factoryName: str
+    ownerName: str
+    location: str
+    bondSize: float
+    userId: str = "current-user"
+    licenseFileName: str = "license_file"
+    timestamp: str = ""
+    
+    class Config:
+        extra = "allow"  # Allow extra fields
+
+class DAOVoteRequest(BaseModel):
+    proposalId: str
+    userId: str
+    voteType: str  # 'for', 'against', 'abstain'
+    timestamp: str = ""
+    
+    class Config:
+        extra = "allow"
+
 # --- 3. In-Memory Simulators & AI Model ---
 simulators = {
-    "Bhilai-001": SensorSimulator(base_level=80, spike_chance=0.05, max_level=220),
-    "Mumbai-002": SensorSimulator(base_level=60, spike_chance=0.02, max_level=220),
+    "factory-001": SensorSimulator(base_level=80, spike_chance=0.05, max_level=220),
+    "factory-002": SensorSimulator(base_level=60, spike_chance=0.02, max_level=220),
 }
 
 forecaster = LSTMForecaster(
@@ -219,6 +238,10 @@ async def autonomous_monitor(pool: asyncpg.Pool):
         await asyncio.sleep(MONITORING_INTERVAL_SECONDS)
 
 # --- 6. API Endpoints ---
+@app.options("/{full_path:path}")
+async def preflight_handler(full_path: str):
+    """Handle CORS preflight requests"""
+    return {}
 
 @app.get("/api/dashboard-data")
 async def get_dashboard_data():
@@ -231,11 +254,12 @@ async def get_dashboard_data():
 
     async with app.state.pool.acquire() as conn:
         # 1. Get all factory data and format as list of dicts
-        # --- UPDATED QUERY ---
+        # --- UPDATED QUERY - Include registration data columns ---
         factory_rows = await conn.fetch(
             """
             SELECT id, name, stake_balance, license_nft_id, 
-                   compliance_score, status, risk_level 
+                   compliance_score, status, risk_level,
+                   owner_name, location, bond_size
             FROM factories
             """
         )
@@ -249,13 +273,16 @@ async def get_dashboard_data():
                 "name": row['name'],
                 "stakeBalance": float(row['stake_balance']), # Match frontend type
                 "status": row['status'],
+                # Registration data
+                "ownerName": row.get('owner_name', 'Not registered'),
+                "location": row.get('location', 'Not registered'),
+                "bondSize": float(row['bond_size']) if row.get('bond_size') else 0,
                 # Mocking data that's in frontend but not DB yet
                 "licenseNftId": row.get('license_nft_id', 'N/A'),
                 "complianceScore": row.get('compliance_score', 80),
                 "riskLevel": row.get('risk_level', 'low'),
                 # Add other fields as needed by your frontend 'Factory' type
                 "address": "0x...", # Mock
-                "location": {"city": "Unknown"}, # Mock
                 "lastForecast": None # Mock
             })
         # --- END UPDATED QUERY/LOGIC ---
@@ -338,6 +365,215 @@ async def get_forecast_by_id(factory_id: str):
             "timestamp": forecast_row['timestamp'].isoformat(),
             "next_check": (forecast_row['timestamp'] + datetime.timedelta(seconds=10)).isoformat()
         }
+
+# --- ADD FACTORY REGISTRATION ENDPOINT ---
+@app.post("/api/factory-registration")
+async def register_factory(data: FactoryRegistrationRequest):
+    """
+    Handle factory registration from frontend.
+    Saves factory information to the database.
+    """
+    if not app.state.pool:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        print(f"Received registration request: {data.dict()}")
+        print(f"Factory Name: {data.factoryName}, Owner: {data.ownerName}, Location: {data.location}, Bond: {data.bondSize}")
+
+        # Validate required fields
+        if not all([data.factoryName, data.ownerName, data.location, data.bondSize]):
+            raise ValueError("Missing required fields")
+
+        async with app.state.pool.acquire() as conn:
+            # Update the factory with registration details
+            result = await conn.execute(
+                """
+                UPDATE factories 
+                SET owner_name = $1, location = $2, bond_size = $3
+                WHERE id = 'factory-001'
+                """,
+                data.ownerName, data.location, float(data.bondSize)
+            )
+            print(f"Factory registration saved to DB: {data.factoryName} by {data.ownerName} at {data.location}")
+
+        return {
+            "success": True,
+            "message": "Factory registration saved successfully",
+            "data": {
+                "factoryName": data.factoryName,
+                "ownerName": data.ownerName,
+                "location": data.location,
+                "bondSize": data.bondSize,
+            }
+        }
+
+    except ValueError as e:
+        print(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+    except Exception as e:
+        print(f"Error registering factory: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to register factory: {str(e)}")
+
+# --- ADD DAO VOTING ENDPOINT ---
+@app.post("/api/dao-vote")
+async def submit_dao_vote(data: DAOVoteRequest):
+    """
+    Handle DAO proposal voting from frontend.
+    Records vote in database and prevents duplicate votes.
+    """
+    if not app.state.pool:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        print(f"Received DAO vote: {data.dict()}")
+        
+        # Validate required fields
+        if not all([data.proposalId, data.userId, data.voteType]):
+            raise ValueError("Missing required fields: proposalId, userId, voteType")
+        
+        # Validate vote type
+        if data.voteType not in ['for', 'against', 'abstain']:
+            raise ValueError("Invalid voteType. Must be 'for', 'against', or 'abstain'")
+
+        async with app.state.pool.acquire() as conn:
+            # Check if user has already voted on this proposal
+            existing_vote = await conn.fetchrow(
+                """
+                SELECT id, vote_type FROM dao_votes
+                WHERE proposal_id = $1 AND user_id = $2
+                """,
+                data.proposalId, data.userId
+            )
+            
+            if existing_vote:
+                print(f"User {data.userId} already voted on proposal {data.proposalId}")
+                raise ValueError(f"You have already voted on this proposal. Your vote: {existing_vote['vote_type']}")
+            
+            # Insert the vote
+            await conn.execute(
+                """
+                INSERT INTO dao_votes (proposal_id, user_id, vote_type, timestamp)
+                VALUES ($1, $2, $3, NOW())
+                """,
+                data.proposalId, data.userId, data.voteType
+            )
+            
+            # Update proposal vote counts
+            if data.voteType == 'for':
+                await conn.execute(
+                    "UPDATE dao_proposals SET votes_for = votes_for + 1 WHERE id = $1",
+                    data.proposalId
+                )
+            elif data.voteType == 'against':
+                await conn.execute(
+                    "UPDATE dao_proposals SET votes_against = votes_against + 1 WHERE id = $1",
+                    data.proposalId
+                )
+            else:  # abstain
+                await conn.execute(
+                    "UPDATE dao_proposals SET votes_abstain = votes_abstain + 1 WHERE id = $1",
+                    data.proposalId
+                )
+            
+            print(f"Vote recorded: {data.userId} voted {data.voteType} on proposal {data.proposalId}")
+
+        return {
+            "success": True,
+            "message": "Vote recorded successfully",
+            "data": {
+                "proposalId": data.proposalId,
+                "voteType": data.voteType,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+        }
+
+    except ValueError as e:
+        print(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+    except Exception as e:
+        print(f"Error recording vote: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to record vote: {str(e)}")
+
+@app.get("/api/dao-proposals")
+async def get_dao_proposals():
+    """
+    Fetch all DAO proposals with current vote counts.
+    """
+    if not app.state.pool:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        async with app.state.pool.acquire() as conn:
+            proposals = await conn.fetch(
+                """
+                SELECT id, title, description, status, votes_for, votes_against, votes_abstain, created_at
+                FROM dao_proposals
+                ORDER BY created_at DESC
+                """
+            )
+            
+            proposals_list = []
+            for row in proposals:
+                proposals_list.append({
+                    "id": row['id'],
+                    "title": row['title'],
+                    "description": row['description'],
+                    "status": row['status'],
+                    "votesFor": row['votes_for'],
+                    "votesAgainst": row['votes_against'],
+                    "votesAbstain": row['votes_abstain'],
+                    "createdAt": row['created_at'].isoformat() if row['created_at'] else None
+                })
+            
+            return {
+                "success": True,
+                "proposals": proposals_list
+            }
+    
+    except Exception as e:
+        print(f"Error fetching proposals: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch proposals: {str(e)}")
+
+@app.get("/api/user-votes/{user_id}")
+async def get_user_votes(user_id: str):
+    """
+    Fetch all votes cast by a specific user.
+    """
+    if not app.state.pool:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        async with app.state.pool.acquire() as conn:
+            votes = await conn.fetch(
+                """
+                SELECT proposal_id, vote_type, timestamp
+                FROM dao_votes
+                WHERE user_id = $1
+                ORDER BY timestamp DESC
+                """,
+                user_id
+            )
+            
+            votes_list = []
+            for row in votes:
+                votes_list.append({
+                    "proposalId": row['proposal_id'],
+                    "voteType": row['vote_type'],
+                    "timestamp": row['timestamp'].isoformat() if row['timestamp'] else None
+                })
+            
+            return {
+                "success": True,
+                "votes": votes_list
+            }
+    
+    except Exception as e:
+        print(f"Error fetching user votes: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch user votes: {str(e)}")
 
 # --- 7. Run the Server ---
 if __name__ == "__main__":

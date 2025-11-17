@@ -4,16 +4,16 @@ export interface Factory {
   id: string
   name: string
   address: string
-  location: {
-    lat: number
-    lng: number
-    city: string
-  }
+  location: string // Updated to be a simple string
   stakeBalance: string // in ETH
   licenseNftId: string | null
   riskLevel: 'low' | 'medium' | 'high' | 'critical'
   complianceScore: number // 0-100
   lastForecast: ForecastData | null
+  // Registration fields
+  ownerName?: string
+  bondSize?: number
+  status?: string
 }
 
 export interface ForecastData {

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import { TopNav } from '@/components/TopNav'
+import { ChatBot } from '@/components/ChatBot'
 import { ToastProvider } from '@/components/ToastProvider'
 import { ClientLayout } from './ClientLayout'
 import './globals.css'
@@ -27,6 +28,7 @@ export default function RootLayout({
         <body className={inter.variable}>
           <TopNav />
           <ClientLayout>{children}</ClientLayout>
+          <ChatBot />
           <ToastProvider />
         </body>
       </html>
