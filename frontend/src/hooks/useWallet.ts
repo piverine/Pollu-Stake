@@ -19,14 +19,62 @@ export function useWallet() {
   const { wallet, setWallet, disconnectWallet } = useStore()
   const [isConnecting, setIsConnecting] = useState(false)
 
-  // Check if MetaMask is installed
-  const hasMetaMask = typeof window !== 'undefined' && typeof window.ethereum !== 'undefined'
+  // Check if MetaMask is installed and available
+  const [hasMetaMask, setHasMetaMask] = useState(false)
+
+  // Check for MetaMask on component mount and on window.ethereum changes
+  useEffect(() => {
+    const checkMetaMask = () => {
+      const isMetaMaskInstalled = 
+        typeof window !== 'undefined' && 
+        typeof window.ethereum !== 'undefined' &&
+        (window.ethereum.isMetaMask || window.ethereum.providers?.some(p => p.isMetaMask))
+      
+      setHasMetaMask(!!isMetaMaskInstalled)
+      
+      // If MetaMask is installed but not connected, try to connect automatically
+      if (isMetaMaskInstalled && !wallet.isConnected) {
+        // Small delay to ensure the provider is fully initialized
+        const timer = setTimeout(() => {
+          connect()
+        }, 500)
+        return () => clearTimeout(timer)
+      }
+    }
+
+    // Initial check
+    checkMetaMask()
+
+    // Listen for MetaMask injection
+    if (typeof window !== 'undefined') {
+      window.addEventListener('ethereum#initialized', checkMetaMask, {
+        once: true,
+      })
+
+      // Cleanup
+      return () => {
+        window.removeEventListener('ethereum#initialized', checkMetaMask)
+      }
+    }
+  }, [wallet.isConnected])
 
   // Connect wallet
   const connect = useCallback(async () => {
-    if (!hasMetaMask) {
-      toast.error('Please install MetaMask to continue')
+    // Re-check MetaMask installation in case the hook hasn't updated yet
+    const isMetaMaskAvailable = 
+      typeof window !== 'undefined' && 
+      typeof window.ethereum !== 'undefined' &&
+      (window.ethereum.isMetaMask || window.ethereum.providers?.some(p => p.isMetaMask))
+
+    if (!isMetaMaskAvailable) {
+      toast.error('MetaMask is not installed or not detected')
+      setHasMetaMask(false)
       return
+    }
+
+    // If we thought MetaMask wasn't available but it is, update the state
+    if (!hasMetaMask) {
+      setHasMetaMask(true)
     }
 
     setIsConnecting(true)

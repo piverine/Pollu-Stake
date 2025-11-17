@@ -6,10 +6,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 export default function HomePage() {
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-teal-600 to-primary-700 px-4 py-20 text-white sm:px-6 lg:px-8">
+      {/* Hero Section - Full Width */}
+      <div className="relative w-screen left-1/2 right-1/2 -mx-[50vw] bg-gradient-to-br from-primary-500 via-teal-600 to-primary-700 py-20 text-white">
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-        <div className="relative mx-auto max-w-6xl">
+        <div className="relative mx-auto w-full max-w-[2000px] px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="mb-6 text-5xl font-bold leading-tight sm:text-6xl lg:text-7xl">
               Pollu-Stake
@@ -23,23 +23,27 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link href="/admin">
-                <Button size="lg" variant="secondary" className="gap-2 bg-white text-primary-700 hover:bg-teal-50">
+                <button 
+                  className="flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-lg font-medium text-primary-700 shadow-md transition-all hover:bg-teal-50 hover:shadow-lg"
+                >
                   <Shield className="h-5 w-5" />
                   Admin Portal
                   <ArrowRight className="h-5 w-5" />
-                </Button>
+                </button>
               </Link>
               <Link href="/factory">
-                <Button size="lg" className="gap-2 border-2 border-white bg-transparent hover:bg-white hover:text-primary-700">
+                <button 
+                  className="flex items-center gap-2 rounded-lg border-2 border-white bg-transparent px-6 py-3 text-lg font-medium text-white shadow-md transition-all hover:bg-white hover:text-primary-700 hover:shadow-lg"
+                >
                   <Coins className="h-5 w-5" />
                   Factory Portal
                   <ArrowRight className="h-5 w-5" />
-                </Button>
+                </button>
               </Link>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* How It Works */}
       <section className="px-4 py-20 sm:px-6 lg:px-8">
