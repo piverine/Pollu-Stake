@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { ClerkProvider } from '@clerk/nextjs'
 import { TopNav } from '@/components/TopNav'
 import { ToastProvider } from '@/components/ToastProvider'
 import { ClientLayout } from './ClientLayout'
@@ -21,12 +22,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.variable}>
-        <TopNav />
-        <ClientLayout>{children}</ClientLayout>
-        <ToastProvider />
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className={inter.variable}>
+          <TopNav />
+          <ClientLayout>{children}</ClientLayout>
+          <ToastProvider />
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

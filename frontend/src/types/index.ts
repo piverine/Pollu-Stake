@@ -86,3 +86,5 @@ export interface RemediationStep {
   completed: boolean
   dueDate?: string
 }
+
+export type PortalRole = 'admin' | 'factory'
