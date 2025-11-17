@@ -1,20 +1,23 @@
 import { create } from 'zustand'
 import { WalletState, Factory } from '@/types'
 
+// Define the Factory type in the store if it's not imported
+// (Assuming 'Factory' is imported from '@/types')
+
 interface AppState {
   // Wallet state
   wallet: WalletState
   setWallet: (wallet: Partial<WalletState>) => void
   disconnectWallet: () => void
 
-  // Factory state (for factory dashboard)
-  currentFactory: Factory | null
-  setCurrentFactory: (factory: Factory | null) => void
-
-  // Global factories list (for admin)
-  factories: Factory[]
+  // --- NEW FACTORY STATE ---
+  // We use an object (Record) for easier lookup
+  factories: Record<string, Factory>
+  activeFactoryId: string | null
   setFactories: (factories: Factory[]) => void
   updateFactory: (factoryId: string, updates: Partial<Factory>) => void
+  setActiveFactoryId: (factoryId: string | null) => void
+  // --- END NEW FACTORY STATE ---
 
   // UI state
   isSidebarOpen: boolean
@@ -43,20 +46,38 @@ export const useStore = create<AppState>((set) => ({
       },
     }),
 
-  // Factory
-  currentFactory: null,
-  setCurrentFactory: (factory) => set({ currentFactory: factory }),
-
-  // Factories list
-  factories: [],
-  setFactories: (factories) => set({ factories }),
+  // --- UPDATED FACTORY STATE ---
+  factories: {},
+  activeFactoryId: null, // No factory selected by default
+  
+  setFactories: (factories) =>
+    set(() => {
+      // Convert the array of factories into an object for easy lookup
+      const factoriesAsRecord = factories.reduce((acc, factory) => {
+        acc[factory.id] = factory
+        return acc
+      }, {} as Record<string, Factory>)
+      
+      // Automatically select the first factory
+      const firstFactoryId = factories.length > 0 ? factories[0].id : null
+      
+      return { factories: factoriesAsRecord, activeFactoryId: firstFactoryId }
+    }),
+  
   updateFactory: (factoryId, updates) =>
     set((state) => ({
-      factories: state.factories.map((f) =>
-        f.id === factoryId ? { ...f, ...updates } : f
-      ),
+      factories: {
+        ...state.factories,
+        [factoryId]: {
+          ...state.factories[factoryId],
+          ...updates,
+        },
+      },
     })),
-
+    
+  setActiveFactoryId: (factoryId) => set({ activeFactoryId: factoryId }),
+  // --- END UPDATED FACTORY STATE ---
+  
   // UI
   isSidebarOpen: true,
   toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),

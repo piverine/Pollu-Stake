@@ -36,6 +36,7 @@ import toast from 'react-hot-toast'
 
 export default function AdminDashboard() {
   const { factories, setFactories } = useStore()
+  const factoriesArray = Object.values(factories)
   const [treasuryBalance, setTreasuryBalance] = useState('42.5')
   const [slashEvents, setSlashEvents] = useState(MOCK_SLASH_EVENTS)
   const [distributions, setDistributions] = useState(MOCK_GREEN_CREDIT_DISTRIBUTIONS)
@@ -152,8 +153,8 @@ export default function AdminDashboard() {
     toast.success(`Vote recorded: ${voteType}`)
   }
 
-  const criticalFactories = factories.filter((f) => f.riskLevel === 'critical' || f.riskLevel === 'high')
-  const totalStaked = factories.reduce((acc, f) => acc + parseFloat(f.stakeBalance), 0)
+  const criticalFactories = factoriesArray.filter((f) => f.riskLevel === 'critical' || f.riskLevel === 'high')
+  const totalStaked = factoriesArray.reduce((acc, f) => acc + parseFloat(f.stakeBalance.toString()), 0)
 
   return (
     <div className="min-h-screen bg-charcoal-50 p-4 sm:p-6 lg:p-8">
@@ -240,7 +241,7 @@ export default function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {factories.map((factory) => (
+                {factoriesArray.map((factory) => (
                   <TableRow key={factory.id}>
                     <TableCell>
                       <div>

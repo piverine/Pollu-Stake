@@ -1,9 +1,10 @@
+
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePolling } from '@/hooks/usePolling'
 import { getForecast } from '@/services/aiApiClient'
-import { stake, getStakeBalance } from '@/services/contractStubs'
+import { stake } from '@/services/contractStubs'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -18,33 +19,74 @@ import {
 } from '@/components/ui/Table'
 import { AlertTriangle, CheckCircle2, TrendingUp, Coins, FileText, Clock } from 'lucide-react'
 import { formatTimestamp, formatEth } from '@/lib/utils'
-import { ForecastData, RemediationStep } from '@/types'
+import { ForecastData, RemediationStep, Factory } from '@/types'
 import { MOCK_SLASH_EVENTS, MOCK_REMEDIATION_STEPS } from '@/services/mockData'
 import toast from 'react-hot-toast'
+import { useStore } from '@/store/useStore' // <-- Import the store
+
+// --- ADD THIS MISSING FUNCTION ---
+// This function fetches from your backend's /api/dashboard-data
+async function fetchAllDashboardData() {
+  // This should point to your backend API, not the frontend's
+  const response = await fetch('http://localhost:8000/api/dashboard-data');
+  if (!response.ok) {
+    throw new Error('Failed to fetch dashboard data');
+  }
+  return response.json();
+}
+// --- END OF MISSING FUNCTION ---
 
 export default function FactoryDashboard() {
   const [stakeAmount, setStakeAmount] = useState('')
-  const [stakeBalance, setStakeBalance] = useState('10.5')
-  const [nftId, setNftId] = useState('42')
   const [forecast, setForecast] = useState<ForecastData | null>(null)
   const [isStaking, setIsStaking] = useState(false)
   const [remediationSteps, setRemediationSteps] = useState<RemediationStep[]>(
     MOCK_REMEDIATION_STEPS
   )
+  
+  // --- Get ALL factory state from the global store ---
+  const {
+    factories,
+    setFactories,
+    updateFactory,
+    activeFactoryId,
+    setActiveFactoryId,
+  } = useStore()
+  
+  // Get an array of all factories for the dropdown
+  const allFactories = Object.values(factories)
+  // Get the currently selected factory object
+  const currentFactory = activeFactoryId ? factories[activeFactoryId] : null
 
-  const factoryId = 'Bhilai-001'
+  // --- Fetch data ONCE on page load ---
+  useEffect(() => {
+    // Only fetch if factories aren't already loaded
+    if (Object.keys(factories).length === 0) {
+      fetchAllDashboardData()
+        .then((data) => {
+          setFactories(data.factories) // Load all factories into the store
+        })
+        .catch((err) => {
+          console.error(err)
+          toast.error('Failed to load factory data from backend.')
+        })
+    }
+  }, [factories, setFactories])
 
-  // Poll forecast data every 10 seconds
+  // Poll forecast data every 10 seconds FOR THE ACTIVE FACTORY
   usePolling(
     async () => {
-      try {
-        const data = await getForecast(factoryId)
-        setForecast(data)
-      } catch (error) {
-        console.error('Failed to fetch forecast:', error)
+      if (activeFactoryId) { // Only poll if a factory is selected
+        try {
+          const data = await getForecast(activeFactoryId)
+          setForecast(data)
+        } catch (error) {
+          console.error('Failed to fetch forecast:', error)
+          setForecast(null) // Clear forecast on error
+        }
       }
     },
-    { interval: 10000, enabled: true }
+    { interval: 10000, enabled: !!activeFactoryId } // Only enable polling if activeFactoryId is set
   )
 
   const handleStake = async () => {
@@ -52,23 +94,26 @@ export default function FactoryDashboard() {
       toast.error('Please enter a valid amount')
       return
     }
+    if (!currentFactory) {
+      toast.error('Please select a factory first')
+      return
+    }
 
     setIsStaking(true)
     try {
-      const txHash = await stake(stakeAmount, factoryId)
+      const txHash = await stake(stakeAmount, currentFactory.id)
       toast.success(
         `Staked ${stakeAmount} ETH successfully! Transaction: ${txHash.slice(0, 10)}...`
       )
       
-      // Update local state
-      const newBalance = parseFloat(stakeBalance) + parseFloat(stakeAmount)
-      setStakeBalance(newBalance.toString())
+      // --- THIS IS THE FIX ---
+      // Update the global store instead of local state
+      const currentBalance = parseFloat(currentFactory.stakeBalance.toString())
+      const newBalance = currentBalance + parseFloat(stakeAmount)
+      updateFactory(currentFactory.id, { stakeBalance: newBalance.toString() })
+      // --- END FIX ---
+
       setStakeAmount('')
-      
-      // Simulate NFT minting if first stake
-      if (!nftId) {
-        setNftId('42')
-      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to stake')
     } finally {
@@ -84,18 +129,52 @@ export default function FactoryDashboard() {
 
   const forecastBreachAlert = forecast?.forecast_breach
 
+  // Show a loading state if no factory is selected or data is loading
+  if (!currentFactory) {
+    return (
+      <div className="min-h-screen bg-charcoal-50 p-4 sm:p-6 lg:p-8">
+        <h1 className="text-3xl font-bold text-charcoal-900">Factory Dashboard</h1>
+        <p className="mt-2 text-charcoal-600">Loading factory data...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-charcoal-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-charcoal-900">Factory Dashboard</h1>
-          <p className="mt-2 text-charcoal-600">Bhilai Steel Plant (ID: {factoryId})</p>
+        {/* Header and Factory Selector */}
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-charcoal-900">Factory Dashboard</h1>
+            <p className="mt-2 text-charcoal-600">
+              {currentFactory.name} (ID: {currentFactory.id})
+            </p>
+          </div>
+          {/* --- NEW FACTORY SELECTOR --- */}
+          <div className="mt-4 sm:mt-0">
+            <label htmlFor="factory-select" className="block text-sm font-medium text-charcoal-700">
+              Select Factory
+            </label>
+            <select
+              id="factory-select"
+              name="factory"
+              className="mt-1 block w-full rounded-md border-charcoal-300 py-2 pl-3 pr-10 text-base focus:border-primary-500 focus:outline-none focus:ring-primary-500 sm:text-sm"
+              value={activeFactoryId || ''}
+              onChange={(e) => setActiveFactoryId(e.target.value)}
+            >
+              {allFactories.map((factory) => (
+                <option key={factory.id} value={factory.id}>
+                  {factory.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* --- END FACTORY SELECTOR --- */}
         </div>
 
         {/* Alert Banner */}
         {forecastBreachAlert && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border-2 border-red-500 bg-red-50 p-4 text-red-900">
+         <div className="mb-6 flex items-start gap-3 rounded-xl border-2 border-red-500 bg-red-50 p-4 text-red-900">
             <AlertTriangle className="mt-0.5 h-6 w-6 flex-shrink-0" />
             <div>
               <p className="font-semibold">⚠️ Breach Predicted!</p>
@@ -116,7 +195,8 @@ export default function FactoryDashboard() {
                 <div>
                   <p className="text-sm text-charcoal-600">Stake Balance</p>
                   <p className="mt-1 text-2xl font-bold text-charcoal-900">
-                    {formatEth(stakeBalance)} ETH
+                    {/* Read from global store */}
+                    {formatEth(currentFactory.stakeBalance)} ETH 
                   </p>
                 </div>
                 <Coins className="h-10 w-10 text-primary-600" />
@@ -129,7 +209,9 @@ export default function FactoryDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-charcoal-600">License NFT</p>
-                  <p className="mt-1 text-2xl font-bold text-charcoal-900">#{nftId || 'N/A'}</p>
+                  <p className="mt-1 text-2xl font-bold text-charcoal-900">
+                    #{currentFactory.licenseNftId || 'N/A'}
+                  </p>
                 </div>
                 <FileText className="h-10 w-10 text-teal-600" />
               </div>
@@ -199,7 +281,7 @@ export default function FactoryDashboard() {
             </CardContent>
           </Card>
 
-          {/* Forecast Panel */}
+          {/* Forecast Panel (rest of the page is the same) */}
           <Card>
             <CardHeader>
               <CardTitle>AI Forecast</CardTitle>
@@ -296,7 +378,7 @@ export default function FactoryDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MOCK_SLASH_EVENTS.filter((e) => e.factoryId === factoryId).map((event) => (
+                {MOCK_SLASH_EVENTS.filter((e) => e.factoryId === currentFactory.id).map((event) => (
                   <TableRow key={event.id}>
                     <TableCell>{formatTimestamp(event.timestamp)}</TableCell>
                     <TableCell className="font-semibold text-red-600">

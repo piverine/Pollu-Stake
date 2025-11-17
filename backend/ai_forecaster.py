@@ -63,7 +63,7 @@ class LSTMForecaster:
             # 6. Check for breach
             breach = predicted_value > self.breach_threshold
             
-            return (breach, round(float(predicted_value), 2))
+            return (bool(breach), float(round(predicted_value, 2)))
                 
         except Exception as e:
             print(f"Error during LSTM prediction: {e}")
