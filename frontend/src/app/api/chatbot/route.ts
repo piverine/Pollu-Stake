@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     if (!GEMINI_API_KEY) {
       console.error('GEMINI_API_KEY not configured in environment variables')
       return NextResponse.json(
-        { 
+        {
           error: 'Chatbot service not configured. Please add NEXT_PUBLIC_GEMINI_API_KEY to your .env.local file.',
           response: 'I apologize, but the chatbot is not properly configured. Please contact the administrator to set up the Gemini API key.'
         },
@@ -28,7 +28,6 @@ export async function POST(request: NextRequest) {
     const languageInstructions: Record<string, string> = {
       english: 'Respond in English.',
       hindi: 'Respond in Hindi (Devanagari script). Use simple Hindi words that common people understand.',
-      chhattisgarhi: 'Respond in Chhattisgarhi language (Devanagari script). Use simple Chhattisgarhi words.',
       hinglish: 'Respond in Hinglish (Hindi words written in English/Roman script). Mix Hindi and English naturally. Example: "Aapka stake 50 ETH hai aur compliance 85% hai."',
     }
 
@@ -126,21 +125,21 @@ SIMPLE EXPLANATIONS (use these in the selected language):
     if (!response.ok) {
       const errorData = await response.json()
       console.error('Gemini API error:', errorData)
-      
+
       // Handle specific error cases
       if (response.status === 403) {
         return NextResponse.json(
-          { 
+          {
             error: 'API key is invalid or has insufficient permissions',
             response: 'The chatbot API key is invalid. Please check your NEXT_PUBLIC_GEMINI_API_KEY in .env.local'
           },
           { status: 403 }
         )
       }
-      
+
       if (response.status === 429) {
         return NextResponse.json(
-          { 
+          {
             error: 'Rate limit exceeded',
             response: 'Too many requests. Please wait a moment and try again.'
           },
@@ -149,7 +148,7 @@ SIMPLE EXPLANATIONS (use these in the selected language):
       }
 
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to generate response from Gemini API',
           response: 'Sorry, I encountered an error. Please try again later.'
         },
@@ -171,7 +170,7 @@ SIMPLE EXPLANATIONS (use these in the selected language):
   } catch (error) {
     console.error('Chatbot API error:', error)
     return NextResponse.json(
-      { 
+      {
         error: 'Internal server error',
         response: 'An unexpected error occurred. Please try again later.'
       },

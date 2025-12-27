@@ -54,7 +54,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <p className="mt-6 text-sm text-charcoal-500">
               Please sign in with a Clerk account that has the appropriate role assigned.
             </p>
-            <SignInButton mode="modal" afterSignInUrl={pathname || undefined}>
+            <SignInButton mode="modal" forceRedirectUrl={pathname || undefined}>
               <Button className="mt-6 w-full">Sign in to continue</Button>
             </SignInButton>
           </div>

@@ -43,22 +43,22 @@ export default function AdminDashboard() {
   const [slashEvents, setSlashEvents] = useState(MOCK_SLASH_EVENTS)
   const [distributions, setDistributions] = useState(MOCK_GREEN_CREDIT_DISTRIBUTIONS)
   const [proposals, setProposals] = useState(MOCK_PROPOSALS)
-  
+
   const [selectedFactory, setSelectedFactory] = useState<Factory | null>(null)
   const [slashAmount, setSlashAmount] = useState('')
   const [slashReason, setSlashReason] = useState('')
   const [isSlashing, setIsSlashing] = useState(false)
-  
+
   const [showMintModal, setShowMintModal] = useState(false)
   const [mintAddress, setMintAddress] = useState('')
   const [mintAmount, setMintAmount] = useState('')
   const [isMinting, setIsMinting] = useState(false)
 
   useEffect(() => {
-    if (factories.length === 0) {
+    if (factoriesArray.length === 0) {
       setFactories(MOCK_FACTORIES)
     }
-  }, [factories, setFactories])
+  }, [factoriesArray.length, setFactories])
 
   const handleTriggerSlash = async (factory: Factory) => {
     setSelectedFactory(factory)
@@ -73,13 +73,13 @@ export default function AdminDashboard() {
     setIsSlashing(true)
     try {
       const txHash = await slash(selectedFactory.id, slashAmount, slashReason)
-      
+
       toast.success(`Slash executed successfully! Tx: ${txHash.slice(0, 10)}...`)
-      
+
       // Update treasury
       const newBalance = parseFloat(treasuryBalance) + parseFloat(slashAmount)
       setTreasuryBalance(newBalance.toString())
-      
+
       // Add slash event
       const newEvent = {
         id: `slash-${Date.now()}`,
@@ -92,7 +92,7 @@ export default function AdminDashboard() {
         triggered_by: 'manual' as const,
       }
       setSlashEvents([newEvent, ...slashEvents])
-      
+
       // Reset
       setSelectedFactory(null)
       setSlashAmount('')
@@ -113,9 +113,9 @@ export default function AdminDashboard() {
     setIsMinting(true)
     try {
       const txHash = await mintGreenCredits(mintAddress, parseInt(mintAmount))
-      
+
       toast.success(`Minted ${mintAmount} GreenCredits! Tx: ${txHash.slice(0, 10)}...`)
-      
+
       // Add distribution record
       const newDist = {
         id: `gc-${Date.now()}`,
@@ -126,7 +126,7 @@ export default function AdminDashboard() {
         reason: 'Manual admin mint',
       }
       setDistributions([newDist, ...distributions])
-      
+
       // Reset
       setShowMintModal(false)
       setMintAddress('')
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-charcoal-600">Active Factories</p>
-                  <p className="mt-1 text-2xl font-bold text-charcoal-900">{factories.length}</p>
+                  <p className="mt-1 text-2xl font-bold text-charcoal-900">{factoriesArray.length}</p>
                 </div>
                 <FactoryIcon className="h-10 w-10 text-primary-600" />
               </div>
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
 
         {/* Charts Section */}
         <div className="mb-6 grid gap-6 lg:grid-cols-2">
-          <FactoryComplianceChart 
+          <FactoryComplianceChart
             data={[
               { name: 'Factory-001', compliance: 85, risk: 15 },
               { name: 'Factory-002', compliance: 92, risk: 8 },
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
               { name: 'Factory-004', compliance: 88, risk: 12 },
             ]}
           />
-          <TreasuryChart 
+          <TreasuryChart
             data={[
               { name: 'Slashed Stakes', value: 35 },
               { name: 'GreenCredits Reserve', value: 25 },
@@ -272,7 +272,7 @@ export default function AdminDashboard() {
                         <p className="text-xs text-charcoal-500">{factory.id}</p>
                       </div>
                     </TableCell>
-                    <TableCell>{factory.location.city}</TableCell>
+                    <TableCell>{factory.location}</TableCell>
                     <TableCell className="font-semibold">
                       {formatEth(factory.stakeBalance)} ETH
                     </TableCell>
@@ -281,13 +281,12 @@ export default function AdminDashboard() {
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`font-semibold ${
-                          factory.complianceScore >= 80
-                            ? 'text-primary-600'
-                            : factory.complianceScore >= 60
+                        className={`font-semibold ${factory.complianceScore >= 80
+                          ? 'text-primary-600'
+                          : factory.complianceScore >= 60
                             ? 'text-yellow-600'
                             : 'text-red-600'
-                        }`}
+                          }`}
                       >
                         {factory.complianceScore}%
                       </span>
@@ -399,8 +398,8 @@ export default function AdminDashboard() {
                             proposal.status === 'passed'
                               ? 'success'
                               : proposal.status === 'active'
-                              ? 'info'
-                              : 'default'
+                                ? 'info'
+                                : 'default'
                           }
                         >
                           {proposal.status}

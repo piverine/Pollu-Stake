@@ -23,19 +23,20 @@ import toast from 'react-hot-toast'
 
 export default function FactoriesPage() {
   const { factories, setFactories } = useStore()
+  const factoriesList = Object.values(factories)
   const [slashEvents, setSlashEvents] = useState(MOCK_SLASH_EVENTS)
   const [treasuryBalance, setTreasuryBalance] = useState('42.5')
-  
+
   const [selectedFactory, setSelectedFactory] = useState<Factory | null>(null)
   const [slashAmount, setSlashAmount] = useState('')
   const [slashReason, setSlashReason] = useState('')
   const [isSlashing, setIsSlashing] = useState(false)
 
   useEffect(() => {
-    if (factories.length === 0) {
+    if (factoriesList.length === 0) {
       setFactories(MOCK_FACTORIES)
     }
-  }, [factories, setFactories])
+  }, [factoriesList.length, setFactories])
 
   const handleTriggerSlash = async (factory: Factory) => {
     setSelectedFactory(factory)
@@ -50,13 +51,13 @@ export default function FactoriesPage() {
     setIsSlashing(true)
     try {
       const txHash = await slash(selectedFactory.id, slashAmount, slashReason)
-      
+
       toast.success(`Slash executed successfully! Tx: ${txHash.slice(0, 10)}...`)
-      
+
       // Update treasury
       const newBalance = parseFloat(treasuryBalance) + parseFloat(slashAmount)
       setTreasuryBalance(newBalance.toString())
-      
+
       // Add slash event
       const newEvent = {
         id: `slash-${Date.now()}`,
@@ -69,7 +70,7 @@ export default function FactoriesPage() {
         triggered_by: 'manual' as const,
       }
       setSlashEvents([newEvent, ...slashEvents])
-      
+
       // Reset
       setSelectedFactory(null)
       setSlashAmount('')
@@ -93,7 +94,7 @@ export default function FactoriesPage() {
         {/* Factory List */}
         <Card>
           <CardHeader>
-            <CardTitle>All Factories ({factories.length})</CardTitle>
+            <CardTitle>All Factories ({factoriesList.length})</CardTitle>
             <CardDescription>Complete list of registered factories with compliance status</CardDescription>
           </CardHeader>
           <CardContent>
@@ -109,7 +110,7 @@ export default function FactoriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {factories.map((factory) => (
+                {factoriesList.map((factory) => (
                   <TableRow key={factory.id}>
                     <TableCell>
                       <div>
@@ -117,7 +118,7 @@ export default function FactoriesPage() {
                         <p className="text-xs text-charcoal-500">{factory.id}</p>
                       </div>
                     </TableCell>
-                    <TableCell>{factory.location.city}</TableCell>
+                    <TableCell>{factory.location}</TableCell>
                     <TableCell className="font-semibold">
                       {formatEth(factory.stakeBalance)} ETH
                     </TableCell>
@@ -126,13 +127,12 @@ export default function FactoriesPage() {
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`font-semibold ${
-                          factory.complianceScore >= 80
-                            ? 'text-primary-600'
-                            : factory.complianceScore >= 60
+                        className={`font-semibold ${factory.complianceScore >= 80
+                          ? 'text-primary-600'
+                          : factory.complianceScore >= 60
                             ? 'text-yellow-600'
                             : 'text-red-600'
-                        }`}
+                          }`}
                       >
                         {factory.complianceScore}%
                       </span>

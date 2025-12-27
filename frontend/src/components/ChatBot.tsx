@@ -22,12 +22,12 @@ interface UserData {
   [key: string]: any
 }
 
-type Language = 'english' | 'hindi' | 'chhattisgarhi' | 'hinglish'
+type Language = 'english' | 'hindi' | 'hinglish'
 
 const greetings: Record<Language, string> = {
   english: 'Hello! 👋 I\'m your Pollu-Stake assistant. I can help explain complex terms, guide you through the platform, and answer your questions about your account. What would you like to know?',
   hindi: 'नमस्ते! 👋 मैं आपका Pollu-Stake सहायक हूँ। मैं जटिल शब्दों को समझाने, प्लेटफॉर्म के माध्यम से आपको गाइड करने, और आपके खाते के बारे में सवालों के जवाब देने में मदद कर सकता हूँ। आप क्या जानना चाहते हैं?',
-  chhattisgarhi: 'नमस्कार! 👋 मैं आपका Pollu-Stake सहायक हूँ। मैं मुश्किल शब्दों के बारे में बताने, प्लेटफॉर्म में आपकी मदद करने, और आपके खाते के बारे में सवालों का जवाब देने में मदद कर सकता हूँ। आप क्या जानना चाहते हैं?',
+
   hinglish: 'Hello! 👋 Main aapka Pollu-Stake assistant hoon. Main complex terms ko samjha sakta hoon, platform ke through guide kar sakta hoon, aur aapke account ke baare mein questions ka jawab de sakta hoon. Aap kya jaanna chahte ho?',
 }
 
@@ -111,7 +111,7 @@ export function ChatBot() {
   // Start voice recognition
   const startListening = () => {
     if (recognitionRef.current) {
-      recognitionRef.current.lang = language === 'hindi' ? 'hi-IN' : language === 'chhattisgarhi' ? 'hi-IN' : 'en-US'
+      recognitionRef.current.lang = language === 'hindi' ? 'hi-IN' : 'en-US'
       recognitionRef.current.start()
     } else {
       toast.error('Voice recognition not supported in your browser')
@@ -131,16 +131,16 @@ export function ChatBot() {
 
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
-    
+
     // Set language for speech
-    if (language === 'hindi' || language === 'chhattisgarhi') {
+    if (language === 'hindi') {
       utterance.lang = 'hi-IN'
     } else if (language === 'hinglish') {
       utterance.lang = 'en-IN'
     } else {
       utterance.lang = 'en-US'
     }
-    
+
     utterance.rate = 0.9
     utterance.pitch = 1
     utterance.volume = 1
@@ -267,10 +267,10 @@ ${userData.factories?.map((f: any) => `  • ${f.name}: ${f.stakeBalance} ETH, S
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             {/* Language Selector */}
             <div className="flex gap-2 flex-wrap">
-              {(['english', 'hindi', 'hinglish', 'chhattisgarhi'] as Language[]).map((lang) => (
+              {(['english', 'hindi', 'hinglish'] as Language[]).map((lang) => (
                 <button
                   key={lang}
                   onClick={() => {
@@ -284,11 +284,10 @@ ${userData.factories?.map((f: any) => `  • ${f.name}: ${f.stakeBalance} ETH, S
                       },
                     ])
                   }}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                    language === lang
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${language === lang
                       ? 'bg-white text-primary-600'
                       : 'bg-white/20 text-white hover:bg-white/30'
-                  }`}
+                    }`}
                 >
                   {lang.charAt(0).toUpperCase() + lang.slice(1)}
                 </button>
@@ -301,24 +300,21 @@ ${userData.factories?.map((f: any) => `  • ${f.name}: ${f.stakeBalance} ETH, S
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${
-                  message.sender === 'user' ? 'justify-end' : 'justify-start'
-                }`}
+                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
               >
                 <div
-                  className={`max-w-xs rounded-lg px-4 py-2 text-sm ${
-                    message.sender === 'user'
+                  className={`max-w-xs rounded-lg px-4 py-2 text-sm ${message.sender === 'user'
                       ? 'bg-primary-500 text-white rounded-br-none'
                       : 'bg-white text-charcoal-900 border border-charcoal-200 rounded-bl-none'
-                  }`}
+                    }`}
                 >
                   <p className="whitespace-pre-wrap break-words">{message.text}</p>
                   <span
-                    className={`text-xs mt-1 block ${
-                      message.sender === 'user'
+                    className={`text-xs mt-1 block ${message.sender === 'user'
                         ? 'text-primary-100'
                         : 'text-charcoal-500'
-                    }`}
+                      }`}
                   >
                     {message.timestamp.toLocaleTimeString([], {
                       hour: '2-digit',
@@ -364,17 +360,16 @@ ${userData.factories?.map((f: any) => `  • ${f.name}: ${f.stakeBalance} ETH, S
                 <Send className="h-4 w-4" />
               </Button>
             </div>
-            
+
             {/* Voice Controls */}
             <div className="flex gap-2 justify-between">
               <div className="flex gap-2">
                 <button
                   onClick={isListening ? stopListening : startListening}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                    isListening
+                  className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${isListening
                       ? 'bg-red-500 text-white'
                       : 'bg-blue-500 text-white hover:bg-blue-600'
-                  }`}
+                    }`}
                   title="Click to speak"
                 >
                   {isListening ? (
@@ -390,14 +385,13 @@ ${userData.factories?.map((f: any) => `  • ${f.name}: ${f.stakeBalance} ETH, S
                   )}
                 </button>
               </div>
-              
+
               <button
                 onClick={() => setVoiceEnabled(!voiceEnabled)}
-                className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                  voiceEnabled
+                className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${voiceEnabled
                     ? 'bg-green-500 text-white'
                     : 'bg-gray-500 text-white'
-                }`}
+                  }`}
                 title="Toggle voice output"
               >
                 {voiceEnabled ? (

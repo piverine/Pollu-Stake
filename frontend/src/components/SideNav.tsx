@@ -11,6 +11,7 @@ import {
   Settings,
   FileText,
   TrendingUp,
+  Globe,
 } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { cn } from '@/lib/utils'
@@ -34,6 +35,7 @@ const factoryNav: NavItem[] = [
   { label: 'Dashboard', href: '/factory', icon: LayoutDashboard },
   { label: 'Stake Management', href: '/factory/stake', icon: Coins },
   { label: 'Forecasts', href: '/factory/forecasts', icon: TrendingUp },
+  { label: 'Global AQI', href: '/factory/aqi', icon: Globe },
   { label: 'Slash History', href: '/factory/history', icon: AlertTriangle },
   { label: 'Compliance', href: '/factory/compliance', icon: FileText },
 ]
@@ -77,7 +79,7 @@ export function SideNav() {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href as any}
                 className={cn(
                   'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors',
                   isActive
