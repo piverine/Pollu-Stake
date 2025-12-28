@@ -13,13 +13,19 @@ export async function GET(
 ) {
   const { factoryId } = params
 
-  // Mock forecast data
+  // Helper to add random variance to base AQI
+  const getRandomAQI = (base: number) => {
+    const variance = Math.floor(Math.random() * 10) - 5 // +/- 5
+    return Math.max(0, base + variance)
+  }
+
+  // Mock forecast data with dynamic updates
   const mockForecasts: Record<string, any> = {
     'Bhilai-001': {
       factory_id: 'Bhilai-001',
       forecast_breach: forecastState[factoryId]?.breachEnabled ?? true,
       confidence: 0.95,
-      predicted_aqi: 165,
+      predicted_aqi: getRandomAQI(84),
       timestamp: new Date().toISOString(),
       next_check: new Date(Date.now() + 10000).toISOString(),
     },
@@ -27,7 +33,7 @@ export async function GET(
       factory_id: 'Mumbai-002',
       forecast_breach: false,
       confidence: 0.88,
-      predicted_aqi: 82,
+      predicted_aqi: getRandomAQI(112),
       timestamp: new Date().toISOString(),
       next_check: new Date(Date.now() + 10000).toISOString(),
     },
@@ -35,7 +41,7 @@ export async function GET(
       factory_id: 'Delhi-003',
       forecast_breach: false,
       confidence: 0.92,
-      predicted_aqi: 58,
+      predicted_aqi: getRandomAQI(155),
       timestamp: new Date().toISOString(),
       next_check: new Date(Date.now() + 10000).toISOString(),
     },
@@ -43,7 +49,7 @@ export async function GET(
       factory_id: 'Chennai-004',
       forecast_breach: false,
       confidence: 0.91,
-      predicted_aqi: 45,
+      predicted_aqi: getRandomAQI(42),
       timestamp: new Date().toISOString(),
       next_check: new Date(Date.now() + 10000).toISOString(),
     },
@@ -51,7 +57,7 @@ export async function GET(
       factory_id: 'Kolkata-005',
       forecast_breach: forecastState[factoryId]?.breachEnabled ?? true,
       confidence: 0.89,
-      predicted_aqi: 178,
+      predicted_aqi: getRandomAQI(178),
       timestamp: new Date().toISOString(),
       next_check: new Date(Date.now() + 10000).toISOString(),
     },

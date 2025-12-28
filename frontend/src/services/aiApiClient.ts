@@ -7,7 +7,7 @@
 
 import { ForecastData } from '@/types'
 
-const API_BASE = 'http://localhost:8000/api' // <-- Point to your real backend
+const API_BASE = '/api' // <-- Point to your real backend
 
 /**
  * Fetch forecast for a specific factory
@@ -66,5 +66,41 @@ export async function toggleBreachStatus(factoryId: string): Promise<void> {
   } catch (error) {
     console.error('Error toggling breach status:', error)
     throw error
+  }
+}
+
+/**
+ * Get AI Prediction for trend
+ */
+export async function getAQIPrediction(history: number[]): Promise<{
+  prediction: number
+  trend: 'INCREASING' | 'DECREASING' | 'STABLE'
+  difference: number
+}> {
+  try {
+    const response = await fetch('/api/predict-aqi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ history }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Prediction request failed')
+    }
+
+    const data = await response.json()
+    return {
+      prediction: data.predicted_aqi,
+      trend: data.trend,
+      difference: data.difference
+    }
+  } catch (error) {
+    console.error('Error getting prediction:', error)
+    // Fallback
+    return {
+      prediction: history[history.length - 1],
+      trend: 'STABLE',
+      difference: 0
+    }
   }
 }

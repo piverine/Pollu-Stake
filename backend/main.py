@@ -61,6 +61,12 @@ class DAOVoteRequest(BaseModel):
     class Config:
         extra = "allow"
 
+class PredictionRequest(BaseModel):
+    data_history: List[float]
+    
+    class Config:
+        extra = "allow"
+
 # --- 3. In-Memory Simulators & AI Model ---
 simulators = {
     "factory-001": SensorSimulator(base_level=80, spike_chance=0.05, max_level=220),
@@ -415,6 +421,50 @@ async def register_factory(data: FactoryRegistrationRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to register factory: {str(e)}")
+
+# --- ADD AQI PREDICTION ENDPOINT ---
+@app.post("/api/predict-aqi")
+async def predict_aqi(data: PredictionRequest):
+    """
+    Predicts the next AQI value based on a history of readings.
+    Uses the loaded LSTM model.
+    """
+    try:
+        # The forecaster expects a list of floats
+        history = data.data_history
+        
+        # Check if we have enough data
+        if len(history) < forecaster.look_back:
+            # Pad with the first value if needed, or just return an error?
+            # For robustness, let's pad the beginning with the first value
+            padding = [history[0]] * (forecaster.look_back - len(history))
+            history = padding + history
+            
+        # Get prediction
+        # predict_breach returns (is_breach, predicted_value)
+        _, predicted_value = forecaster.predict_breach(history)
+        
+        current_value = history[-1]
+        
+        return {
+            "success": True,
+            "current_aqi": current_value,
+            "predicted_aqi": predicted_value,
+            "trend": "INCREASING" if predicted_value > current_value else "DECREASING",
+            "difference": float(round(predicted_value - current_value, 2))
+        }
+
+    except Exception as e:
+        print(f"Error predicting AQI: {e}")
+        import traceback
+        traceback.print_exc()
+        # Fallback for demo if model fails
+        return {
+            "success": False, 
+            "error": str(e),
+            "predicted_aqi": data.data_history[-1],
+            "trend": "STABLE"
+        }
 
 # --- ADD DAO VOTING ENDPOINT ---
 @app.post("/api/dao-vote")

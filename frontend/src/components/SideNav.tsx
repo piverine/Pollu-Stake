@@ -27,6 +27,7 @@ const adminNav: NavItem[] = [
   { label: 'Factories', href: '/admin/factories', icon: Factory },
   { label: 'Slash Monitor', href: '/admin/slash-monitor', icon: AlertTriangle },
   { label: 'Treasury', href: '/admin/treasury', icon: Coins },
+  { label: 'Global AQI', href: '/admin/global-aqi', icon: Globe },
   { label: 'Governance', href: '/admin/governance', icon: Vote },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ]
